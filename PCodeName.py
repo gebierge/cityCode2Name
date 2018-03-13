@@ -50,12 +50,15 @@ class MyHtmlParser(HTMLParser):
         return
 
 from urllib.parse import urljoin
+# you can change these values according to your requrements
 fcurl = 'http://www.stats.gov.cn/tjsj/tjbz/tjyqhdmhcxhfdm/2016/65.html'
 ftourl = '65/6532.html'
+saveLog = True
+code_blacklist = {'653201000000': True};
+# ---------------------------------------------------------
 headers = {'User-Agent':'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_3) AppleWebKit/604.5.6 (KHTML, like Gecko) Version/11.0.3 Safari/604.5.6'}
 code2name = {}
 codeT = {}
-saveLog = True
 logF = None
 if saveLog:
     logF = codecs.open('log.txt', 'w', encoding = 'utf-8')
@@ -73,7 +76,8 @@ def walk(code, curl, tocurl):
     if saveLog:
         logF.write('walk params: [%s, %s, %s]\n'%(code ,curl, tocurl))
         logF.write('go: %s\n'%(url))
-        
+    # handle blacklist
+    codelist = [elem for elem in codelist if elem not in code_blacklist]
     if len(codelist) == 0:
         return
     codeT[code] = codelist
@@ -88,6 +92,9 @@ def walk(code, curl, tocurl):
         logF.write(json.dumps(parser.linklist, ensure_ascii=False)+'\n')
         
     for ll in parser.linklist:
+        # skip blacklist
+        if ll[1] in code_blacklist:
+            continue
         walk(ll[1],url, ll[0])
         
 walk('653200000000', fcurl, ftourl)
