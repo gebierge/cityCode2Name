@@ -33,53 +33,73 @@ class MyHtmlParser(HTMLParser):
             return
         if self.shouldParse == False:
             return
-        #print(type(data))
+
         data = data.strip()
         if len(data) == 0:
             return
         if data.isdigit():
+            if len(data) < 5:
+                return
             self.ccode = data
-            self.linklist.append((self.chref, data))
+            if (len(self.chref)) > 0:
+                self.linklist.append((self.chref, data))
+                self.chref = ''
         else:
             self.code_name_dict[self.ccode] = data
             
-        #print(data)
         return
 
-
-host = 'http://www.stats.gov.cn/tjsj/tjbz/tjyqhdmhcxhfdm/2016/65/'
-page = '6532.html'
-headers = {'User-Agent':'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_3) AppleWebKit/604.5.6 (KHTML, like Gecko) Version/11.0.3 Safari/604.5.6',
-           'Referer':'http://www.stats.gov.cn/tjsj/tjbz/tjyqhdmhcxhfdm/2016/65.html'}
-
+from urllib.parse import urljoin
+fcurl = 'http://www.stats.gov.cn/tjsj/tjbz/tjyqhdmhcxhfdm/2016/65.html'
+ftourl = '65/6532.html'
+headers = {'User-Agent':'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_3) AppleWebKit/604.5.6 (KHTML, like Gecko) Version/11.0.3 Safari/604.5.6'}
 code2name = {}
-
 codeT = {}
-
-def walk(code, page):
-    res = requests.get(host+'/'+page, headers = headers)
+saveLog = True
+logF = None
+if saveLog:
+    logF = codecs.open('log.txt', 'w', encoding = 'utf-8')
+    
+def walk(code, curl, tocurl):
+    url = urljoin(curl, tocurl)
+    headers['Referer'] = curl
+    res = requests.get(url, headers = headers)
     res.encoding = 'gb2312'
     parser = MyHtmlParser()
     parser.feed(res.text)
-    #print('-'*10+'code: name'+'-'*10)
-    #print(parser.code_name_dict)
-    #print('-'*10+'links'+'-'*10)
-    #print(parser.linklist)
+    
     codelist = list(parser.code_name_dict.keys())
+    # about log
+    if saveLog:
+        logF.write('walk params: [%s, %s, %s]\n'%(code ,curl, tocurl))
+        logF.write('go: %s\n'%(url))
+        
     if len(codelist) == 0:
         return
     codeT[code] = codelist
     for k in codelist:
         code2name[k] = parser.code_name_dict[k]
-    for ll in parser.linklist:
-        walk(ll[1], ll[0])
+
+    #about log
+    if saveLog:
+        logF.write('-'*10+'code: name'+'-'*10+'\n')
+        logF.write(json.dumps(parser.code_name_dict, ensure_ascii=False)+'\n')
+        logF.write('-'*10+'links'+'-'*10+'\n')
+        logF.write(json.dumps(parser.linklist, ensure_ascii=False)+'\n')
         
-walk('653200000000', page)
+    for ll in parser.linklist:
+        walk(ll[1],url, ll[0])
+        
+walk('653200000000', fcurl, ftourl)
 #print(codeT)
 #print(code2name)
+if saveLog:
+    logF.close()
 
 fin = codecs.open('code.txt','w',encoding='utf-8')
 fin.write(json.dumps(codeT, ensure_ascii=False))
 fin.write(json.dumps(code2name, ensure_ascii=False));
 fin.close()
+
+
 
